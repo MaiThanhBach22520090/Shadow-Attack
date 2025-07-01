@@ -31,6 +31,12 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Slider glideCD;
     [SerializeField] private Image glideActive;
     [SerializeField] private Slider doubleJumpCD;
+    [SerializeField] private Slider breakCD;
+    [SerializeField] private Image breakSelected; 
+    [SerializeField] private Slider cageCD;
+    [SerializeField] private Image cageSelected; 
+    [SerializeField] private Slider shoveCD;
+    [SerializeField] private Image shoveSelected;
     [SerializeField] private LeaderboardItem[] leaderboardItems;
 
     public Player LocalPlayer;
@@ -42,6 +48,11 @@ public class UIManager : MonoBehaviour
         grappleCD.value = 0f;
         glideCD.value = 0f;
         doubleJumpCD.value = 0f;
+        breakCD.value = 0f;
+        cageCD.value = 0f;
+        shoveCD.value = 0f;
+
+        SelectAbility(AbilityMode.BreakBlock);
     }
 
     private void Update()
@@ -54,6 +65,10 @@ public class UIManager : MonoBehaviour
 
         glideActive.enabled = LocalPlayer.IsGliding;
         glideCD.value = LocalPlayer.IsGliding ? LocalPlayer.GlideCharge : LocalPlayer.GlideCDFactor;
+
+        breakCD.value = LocalPlayer.BreakBlockCDFactor;
+        cageCD.value = LocalPlayer.CageCDFactor;
+        shoveCD.value = LocalPlayer.ShoveCDFactor;
     }
 
     private void OnDestroy()
@@ -85,6 +100,13 @@ public class UIManager : MonoBehaviour
 
         gameStateText.enabled = newState == GameState.Waiting;
         instructionText.enabled = newState == GameState.Waiting;
+    }
+
+    public void SelectAbility(AbilityMode mode)
+    {
+        breakSelected.enabled = mode == AbilityMode.BreakBlock;
+        cageSelected.enabled = mode == AbilityMode.Cage;
+        shoveSelected.enabled = mode == AbilityMode.Shove;
     }
 
     public void UpdateLeaderboard(KeyValuePair<Fusion.PlayerRef, Player>[] players)

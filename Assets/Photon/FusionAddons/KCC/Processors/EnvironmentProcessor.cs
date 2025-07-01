@@ -269,6 +269,12 @@ namespace Fusion.Addons.KCC
 			float   fixedDeltaTime    = fixedData.DeltaTime;
 			Vector3 kinematicVelocity = fixedData.KinematicVelocity;
 
+			// Clamp tiny velocity otherwise resulting in a never-ending movement by 0.000001f every tick.
+			if (kinematicVelocity.IsAlmostZero(0.001f) == true)
+			{
+				kinematicVelocity = default;
+			}
+
 			if (fixedData.IsGrounded == true)
 			{
 				// The character is grounded.

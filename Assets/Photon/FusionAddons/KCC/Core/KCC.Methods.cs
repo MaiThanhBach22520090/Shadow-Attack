@@ -22,6 +22,8 @@ namespace Fusion.Addons.KCC
 			{
 				_fixedData.IsActive = isActive;
 			}
+
+			RefreshCollider(isActive);
 		}
 
 		/// <summary>
@@ -32,7 +34,7 @@ namespace Fusion.Addons.KCC
 		{
 			if (clampToNormalized == true)
 			{
-				direction.ClampToNormalized();
+				direction = direction.ClampToNormalized();
 			}
 
 			_renderData.InputDirection = direction;
@@ -66,7 +68,7 @@ namespace Fusion.Addons.KCC
 				data.AddLookRotation(pitchDelta, yawDelta);
 			}
 
-			SynchronizeTransform(data, false, true, false);
+			SynchronizeTransform(data, false, true, false, false);
 		}
 
 		/// <summary>
@@ -84,7 +86,7 @@ namespace Fusion.Addons.KCC
 				data.AddLookRotation(pitchDelta, yawDelta, minPitch, maxPitch);
 			}
 
-			SynchronizeTransform(data, false, true, false);
+			SynchronizeTransform(data, false, true, false, false);
 		}
 
 		/// <summary>
@@ -120,7 +122,25 @@ namespace Fusion.Addons.KCC
 				data.SetLookRotation(pitch, yaw);
 			}
 
-			SynchronizeTransform(data, false, true, false);
+			SynchronizeTransform(data, false, true, false, false);
+		}
+
+		/// <summary>
+		/// Set pitch and yaw look rotation. Values are clamped to &lt;minPitch, maxPitch&gt; (pitch) and &lt;-180, 180&gt; (yaw).
+		/// Changes done in render will vanish with next fixed update.
+		/// </summary>
+		public void SetLookRotation(float pitch, float yaw, float minPitch, float maxPitch)
+		{
+			KCCData data = _renderData;
+			data.SetLookRotation(pitch, yaw, minPitch, maxPitch);
+
+			if (IsInFixedUpdate == true)
+			{
+				data = _fixedData;
+				data.SetLookRotation(pitch, yaw, minPitch, maxPitch);
+			}
+
+			SynchronizeTransform(data, false, true, false, false);
 		}
 
 		/// <summary>
@@ -130,6 +150,15 @@ namespace Fusion.Addons.KCC
 		public void SetLookRotation(Vector2 lookRotation)
 		{
 			SetLookRotation(lookRotation.x, lookRotation.y);
+		}
+
+		/// <summary>
+		/// Set pitch and yaw look rotation. Values are clamped to &lt;minPitch, maxPitch&gt; (pitch) and &lt;-180, 180&gt; (yaw).
+		/// Changes done in render will vanish with next fixed update.
+		/// </summary>
+		public void SetLookRotation(Vector2 lookRotation, float minPitch, float maxPitch)
+		{
+			SetLookRotation(lookRotation.x, lookRotation.y, minPitch, maxPitch);
 		}
 
 		/// <summary>
@@ -147,7 +176,7 @@ namespace Fusion.Addons.KCC
 				data.SetLookRotation(lookRotation, preservePitch, preserveYaw);
 			}
 
-			SynchronizeTransform(data, false, true, false);
+			SynchronizeTransform(data, false, true, false, false);
 		}
 
 		/// <summary>
@@ -333,35 +362,48 @@ namespace Fusion.Addons.KCC
 		}
 
 		/// <summary>
-		/// Sets <c>KCCData.BasePosition</c>, <c>KCCData.DesiredPosition</c>, <c>KCCData.TargetPosition</c> and immediately synchronize Transform and Rigidbody components.
-		/// Also sets <c>KCCData.HasTeleported</c> flag to <c>true</c> and clears <c>KCCData.IsSteppingUp</c> and <c>KCCData.IsSnappingToGround</c>.
-		/// Calling this from within a processor stage effectively stops any pending move steps and forces KCC to update hits with new overlap query.
+		/// Sets positions in current <c>KCCData</c> and immediately synchronizes Transform and Rigidbody components.
+		/// Teleporting from within a processor stage effectively stops any pending move steps and forces KCC to update hits with new overlap query.
 		/// Changes done in render will vanish with next fixed update.
 		/// </summary>
-		public void SetPosition(Vector3 position)
+		/// <param name="position">New position, propagates to <c>KCCData.BasePosition</c>, <c>KCCData.DesiredPosition</c>, <c>KCCData.TargetPosition</c>.</param>
+		/// <param name="teleport">Teleporting sets <c>KCCData.HasTeleported</c> and clears <c>KCCData.IsSteppingUp</c> and <c>KCCData.IsSnappingToGround</c>.</param>
+		/// <param name="allowAntiJitter">Allows anti-jitter feature. This has effect only in render.</param>
+		/// <param name="moveRigidbody">Use Rigidbody.MovePosition() instead of setting Rigidbody.position directly.</param>
+		public void SetPosition(Vector3 position, bool teleport = true, bool allowAntiJitter = false, bool moveRigidbody = false)
 		{
 			KCCData data = _renderData;
 
-			data.BasePosition       = position;
-			data.DesiredPosition    = position;
-			data.TargetPosition     = position;
-			data.HasTeleported      = true;
-			data.IsSteppingUp       = false;
-			data.IsSnappingToGround = false;
+			data.BasePosition    = position;
+			data.DesiredPosition = position;
+			data.TargetPosition  = position;
 
-			if (IsInFixedUpdate == true)
+			if (teleport == true)
 			{
-				data = _fixedData;
-
-				data.BasePosition       = position;
-				data.DesiredPosition    = position;
-				data.TargetPosition     = position;
 				data.HasTeleported      = true;
 				data.IsSteppingUp       = false;
 				data.IsSnappingToGround = false;
 			}
 
-			SynchronizeTransform(data, true, false, false);
+			if (IsInFixedUpdate == true)
+			{
+				data = _fixedData;
+
+				data.BasePosition    = position;
+				data.DesiredPosition = position;
+				data.TargetPosition  = position;
+
+				if (teleport == true)
+				{
+					data.HasTeleported      = true;
+					data.IsSteppingUp       = false;
+					data.IsSnappingToGround = false;
+				}
+
+				allowAntiJitter = false;
+			}
+
+			SynchronizeTransform(data, true, false, allowAntiJitter, moveRigidbody);
 		}
 
 		/// <summary>
@@ -378,7 +420,7 @@ namespace Fusion.Addons.KCC
 			if (radius > 0.0f) { _settings.Radius = radius; }
 			if (height > 0.0f) { _settings.Height = height; }
 
-			RefreshCollider();
+			RefreshCollider(Data.IsActive);
 		}
 
 		/// <summary>
@@ -388,7 +430,7 @@ namespace Fusion.Addons.KCC
 		{
 			_settings.IsTrigger = isTrigger;
 
-			RefreshCollider();
+			RefreshCollider(Data.IsActive);
 		}
 
 		/// <summary>
@@ -401,7 +443,7 @@ namespace Fusion.Addons.KCC
 
 			_settings.Radius = radius;
 
-			RefreshCollider();
+			RefreshCollider(Data.IsActive);
 		}
 
 		/// <summary>
@@ -414,7 +456,7 @@ namespace Fusion.Addons.KCC
 
 			_settings.Height = height;
 
-			RefreshCollider();
+			RefreshCollider(Data.IsActive);
 		}
 
 		/// <summary>
@@ -424,7 +466,7 @@ namespace Fusion.Addons.KCC
 		{
 			_settings.ColliderLayer = layer;
 
-			RefreshCollider();
+			RefreshCollider(Data.IsActive);
 		}
 
 		/// <summary>
@@ -433,14 +475,6 @@ namespace Fusion.Addons.KCC
 		public void SetCollisionLayerMask(LayerMask layerMask)
 		{
 			_settings.CollisionLayerMask = layerMask;
-		}
-
-		/// <summary>
-		/// Returns whether the KCC use Local or Remote timeframe for interpolation.
-		/// </summary>
-		public RenderTimeframe GetInterpolationTimeframe()
-		{
-			return Object.IsInSimulation == true ? RenderTimeframe.Local : RenderTimeframe.Remote;
 		}
 	}
 }

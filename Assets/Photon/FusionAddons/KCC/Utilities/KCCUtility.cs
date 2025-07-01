@@ -9,7 +9,7 @@ namespace Fusion.Addons.KCC
 	{
 		// PRIVATE MEMBERS
 
-		private static readonly float[] _sortPriorities = new float[KCC.CACHE_SIZE];
+		private static readonly float[] _sortPriorities = new float[KCC.CACHE_SIZE * 2];
 
 		// PUBLIC METHODS
 

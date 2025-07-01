@@ -39,7 +39,7 @@ namespace Fusion.Addons.KCC
 			_fixedData.LookPitch          = lookPitch;
 			_fixedData.LookYaw            = lookYaw;
 
-			SynchronizeTransform(_fixedData, true, true, false);
+			SynchronizeTransform(_fixedData, true, true, false, false);
 		}
 	}
 }

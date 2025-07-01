@@ -61,6 +61,7 @@ namespace Fusion.Addons.KCC
 		private int                 _lastPredictedRenderFrame;
 		private int                 _lastPredictedLookRotationFrame;
 		private float               _lastRenderTime;
+		private int                 _lastRenderFrame;
 		private Vector3             _lastRenderPosition;
 		private Vector3             _lastAntiJitterPosition;
 		private Collider            _lastNonNetworkedCollider;
@@ -80,14 +81,18 @@ namespace Fusion.Addons.KCC
 		/// <summary>
 		/// Immediately synchronize Transform and Rigidbody based on current state.
 		/// </summary>
-		public void SynchronizeTransform(bool synchronizePosition, bool synchronizeRotation, bool allowAntiJitter = true)
+		/// <param name="synchronizePosition">Propagates KCCData.TargetPosition to Transform and Rigidbody components.</param>
+		/// <param name="synchronizeRotation">Propagates KCCData.TransformRotation to Transform component.</param>
+		/// <param name="allowAntiJitter">Allows anti-jitter feature. This has effect only in render.</param>
+		/// <param name="moveRigidbody">Use Rigidbody.MovePosition() instead of setting Rigidbody.position directly.</param>
+		public void SynchronizeTransform(bool synchronizePosition, bool synchronizeRotation, bool allowAntiJitter = true, bool moveRigidbody = false)
 		{
 			if (IsInFixedUpdate == true)
 			{
 				allowAntiJitter = false;
 			}
 
-			SynchronizeTransform(Data, synchronizePosition, synchronizeRotation, allowAntiJitter);
+			SynchronizeTransform(Data, synchronizePosition, synchronizeRotation, allowAntiJitter, moveRigidbody);
 		}
 
 		/// <summary>
@@ -190,42 +195,6 @@ namespace Fusion.Addons.KCC
 			_renderUpdateMarker.End();
 		}
 
-		/// <summary>
-		/// Explicit interpolation on demand. Implicit interpolation in render update is not skipped!
-		/// </summary>
-		/// <param name="alpha">Custom interpolation alpha. Valid range is 0.0 - 1.0, otherwise default value from <c>TryGetSnapshotsBuffers()</c> is used.</param>
-		public void Interpolate(float alpha = -1.0f)
-		{
-			if (_isSpawned == false)
-				return;
-
-			RenderSource    renderSource    = RenderSource.Interpolated;
-			RenderTimeframe renderTimeframe = GetInterpolationTimeframe();
-
-			Interpolate(renderSource, renderTimeframe, alpha);
-		}
-
-		/// <summary>
-		/// Explicit interpolation on demand. Implicit interpolation in render update is not skipped!
-		/// </summary>
-		/// <param name="renderSource">Custom render source.</param>
-		/// <param name="renderTimeframe">Custom render timeframe.</param>
-		/// <param name="alpha">Custom interpolation alpha. Valid range is 0.0 - 1.0, otherwise default value from <c>TryGetSnapshotsBuffers()</c> is used.</param>
-		public void Interpolate(RenderSource renderSource, RenderTimeframe renderTimeframe, float alpha = -1.0f)
-		{
-			if (_isSpawned == false)
-				return;
-
-			InterpolateNetworkData(renderSource, renderTimeframe, alpha);
-
-			if (_renderData.IsActive == true)
-			{
-				CacheProcessors(_renderData);
-				InvokeOnInterpolate(_renderData);
-				SynchronizeTransform(_renderData, true, true, false);
-			}
-		}
-
 		// MonoBehaviour INTERFACE
 
 		private void Awake()
@@ -237,7 +206,7 @@ namespace Fusion.Addons.KCC
 
 			_localROProcessors = new ReadOnlyProcessors(_localProcessors);
 
-			RefreshCollider();
+			RefreshCollider(true);
 		}
 
 		private void OnDestroy()
@@ -330,7 +299,7 @@ namespace Fusion.Addons.KCC
 			if (Object.HasStateAuthority == false)
 			{
 				ReadNetworkData();
-				SynchronizeTransform(_fixedData, true, true, false);
+				SynchronizeTransform(_fixedData, true, true, false, false);
 			}
 
 			_renderData = new KCCData();
@@ -339,7 +308,7 @@ namespace Fusion.Addons.KCC
 			_lastRenderPosition     = _renderData.TargetPosition;
 			_lastAntiJitterPosition = _renderData.TargetPosition;
 
-			RefreshCollider();
+			RefreshCollider(_fixedData.IsActive);
 			RefreshChildColliders();
 
 			UnityEngine.Object[] processors = _settings.Processors;
@@ -448,11 +417,11 @@ namespace Fusion.Addons.KCC
 				RestoreHistoryData(historyData);
 			}
 
-			RefreshCollider();
+			RefreshCollider(_fixedData.IsActive);
 
 			if (_fixedData.IsActive == true)
 			{
-				SynchronizeTransform(_fixedData, true, true, false);
+				SynchronizeTransform(_fixedData, true, true, false, false);
 			}
 
 			_lastPredictedFixedTick = latestServerTick;
@@ -503,7 +472,7 @@ namespace Fusion.Addons.KCC
 
 			_debug.BeforePredictedFixedMove(this);
 
-			RefreshCollider();
+			RefreshCollider(_fixedData.IsActive);
 
 			_simulatedMoveMarker.Begin();
 
@@ -511,7 +480,7 @@ namespace Fusion.Addons.KCC
 
 			if (_fixedData.IsActive == true)
 			{
-				SynchronizeTransform(_fixedData, true, true, false);
+				SynchronizeTransform(_fixedData, true, true, false, true);
 			}
 
 			PublishFixedData(false, true);
@@ -530,12 +499,13 @@ namespace Fusion.Addons.KCC
 
 			Trace(nameof(OnRenderUpdateInternal));
 
-			int   frame     = Time.frameCount;
-			float deltaTime = Runner.DeltaTime;
+			int   frame          = Time.frameCount;
+			float deltaTime      = Runner.DeltaTime;
+			bool  isInSimulation = Object.IsInSimulation;
 
 			_renderData.Frame = frame;
 
-			if (Object.IsInSimulation == true)
+			if (isInSimulation == true && Object.RenderTimeframe != RenderTimeframe.Remote)
 			{
 				_simulatedMoveMarker.Begin();
 
@@ -585,7 +555,7 @@ namespace Fusion.Addons.KCC
 				{
 					MoveInterpolated(_renderData);
 
-					if (_settings.ForcePredictedLookRotation == true)
+					if (IsPredictingLookRotation == true)
 					{
 						_lastPredictedLookRotationFrame = frame;
 					}
@@ -593,7 +563,7 @@ namespace Fusion.Addons.KCC
 
 				if (_renderData.IsActive == true)
 				{
-					SynchronizeTransform(_renderData, true, true, true);
+					SynchronizeTransform(_renderData, true, true, true, true);
 				}
 
 				_simulatedMoveMarker.End();
@@ -608,23 +578,27 @@ namespace Fusion.Addons.KCC
 				}
 				else
 				{
-					_fixedData.Frame           = frame;
-					_fixedData.Tick            = Object.LastReceiveTick;
-					_fixedData.Alpha           = 1.0f;
-					_fixedData.Time            = _fixedData.Tick * deltaTime;
-					_fixedData.DeltaTime       = deltaTime;
-					_fixedData.UpdateDeltaTime = deltaTime;
+					if (isInSimulation == false)
+					{
+						_fixedData.Frame           = frame;
+						_fixedData.Tick            = Object.LastReceiveTick;
+						_fixedData.Alpha           = 1.0f;
+						_fixedData.Time            = _fixedData.Tick * deltaTime;
+						_fixedData.DeltaTime       = deltaTime;
+						_fixedData.UpdateDeltaTime = deltaTime;
 
-					ReadNetworkData();
+						ReadNetworkData();
+					}
 
-					InterpolateNetworkData(RenderSource.Interpolated, RenderTimeframe.Remote);
+					InterpolateNetworkData();
+
+					RefreshCollider(_renderData.IsActive);
 
 					if (_renderData.IsActive == true)
 					{
-						RefreshCollider();
 						CacheProcessors(_renderData);
 						InvokeOnInterpolate(_renderData);
-						SynchronizeTransform(_renderData, true, true, false);
+						SynchronizeTransform(_renderData, true, true, false, true);
 					}
 				}
 
@@ -632,6 +606,7 @@ namespace Fusion.Addons.KCC
 			}
 
 			_lastRenderPosition = _renderData.TargetPosition;
+			_lastRenderFrame    = _renderData.Frame;
 			_lastRenderTime     = _renderData.Time;
 
 			_debug.AfterRenderUpdate(this);
@@ -674,7 +649,7 @@ namespace Fusion.Addons.KCC
 							}
 #endif
 							_predictionError = _lastRenderPosition - expectedRenderPosition;
-							if (_predictionError.sqrMagnitude >= _settings.TeleportThreshold * _settings.TeleportThreshold)
+							if (_predictionError.sqrMagnitude >= 1.0f)
 							{
 								_predictionError = default;
 								return;
@@ -728,16 +703,21 @@ namespace Fusion.Addons.KCC
 			data.BasePosition    = basePosition;
 			data.DesiredPosition = desiredPosition;
 
+			SetBaseProperties(data);
+
 			if (data.IsActive == false)
 			{
 				data.ClearTransientProperties();
 				ForceRemoveAllCollisions(data);
 				ForceRemoveAllHits(data);
+
+				data.RealVelocity = default;
+				data.RealSpeed    = default;
+
 				return;
 			}
 
 			CacheProcessors(data);
-			SetBaseProperties(data);
 
 			ExecuteStageInternal<IBeginMove, BeginMove>(_beginMove, data);
 
@@ -746,6 +726,9 @@ namespace Fusion.Addons.KCC
 				data.ClearTransientProperties();
 				ForceRemoveAllCollisions(data);
 				ForceRemoveAllHits(data);
+
+				data.RealVelocity = default;
+				data.RealSpeed    = default;
 
 				ExecuteStageInternal<IEndMove, EndMove>(_endMove, data);
 
@@ -768,6 +751,8 @@ namespace Fusion.Addons.KCC
 				data.BasePosition    = basePosition;
 				data.DesiredPosition = desiredPosition;
 				data.TargetPosition  = desiredPosition;
+				data.RealVelocity    = extrapolationVelocity;
+				data.RealSpeed       = data.RealVelocity.magnitude;
 
 				ExecuteStageInternal<IEndMove, EndMove>(_endMove, data);
 
@@ -790,7 +775,7 @@ namespace Fusion.Addons.KCC
 			data.ExternalDelta   = default;
 
 			bool    hasFinished           = false;
-			float   radiusMultiplier      = Mathf.Clamp(_settings.CCDRadiusMultiplier, 0.25f, 0.75f);
+			float   radiusMultiplier      = Mathf.Clamp(_settings.CCDRadiusMultiplier, 0.1f, 0.9f);
 			float   maxDeltaMagnitude     = _settings.Radius * (radiusMultiplier + 0.1f);
 			float   optimalDeltaMagnitude = _settings.Radius * radiusMultiplier;
 			Vector3 nonTeleportedPosition = data.TargetPosition;
@@ -898,26 +883,70 @@ namespace Fusion.Addons.KCC
 				return;
 
 			KCCData currentFixedData = _fixedData;
-			if (currentFixedData.HasTeleported == false)
+			if (currentFixedData.HasTeleported == true)
+			{
+				data.BasePosition    = currentFixedData.BasePosition;
+				data.DesiredPosition = currentFixedData.DesiredPosition;
+				data.TargetPosition  = currentFixedData.TargetPosition;
+				data.LookPitch       = currentFixedData.LookPitch;
+				data.LookYaw         = currentFixedData.LookYaw;
+			}
+			else
 			{
 				KCCData previousFixedData = GetHistoryData(currentFixedData.Tick - 1);
 				if (previousFixedData != null)
 				{
 					float alpha = data.Alpha;
 
-					data.BasePosition    = Vector3.Lerp(previousFixedData.BasePosition, currentFixedData.BasePosition, alpha) + _predictionError;
-					data.DesiredPosition = Vector3.Lerp(previousFixedData.DesiredPosition, currentFixedData.DesiredPosition, alpha) + _predictionError;
+					data.BasePosition    = previousFixedData.TargetPosition + _predictionError;
+					data.DesiredPosition = currentFixedData.TargetPosition + _predictionError;
 					data.TargetPosition  = Vector3.Lerp(previousFixedData.TargetPosition, currentFixedData.TargetPosition, alpha) + _predictionError;
 					data.RealVelocity    = Vector3.Lerp(previousFixedData.RealVelocity, currentFixedData.RealVelocity, alpha);
 					data.RealSpeed       = Mathf.Lerp(previousFixedData.RealSpeed, currentFixedData.RealSpeed, alpha);
 
-					if (_settings.ForcePredictedLookRotation == false)
+					if (IsPredictingLookRotation == false)
 					{
 						data.LookPitch = Mathf.Lerp(previousFixedData.LookPitch, currentFixedData.LookPitch, alpha);
 						data.LookYaw   = KCCUtility.InterpolateRange(previousFixedData.LookYaw, currentFixedData.LookYaw, -180.0f, 180.0f, alpha);
 					}
 				}
 			}
+
+			data.HasTeleported = false;
+			int historyTeleportTick = currentFixedData.Tick;
+			while (historyTeleportTick > _networkContext.LastInterpolationTeleportCounter)
+			{
+				KCCData historyData = GetHistoryData(historyTeleportTick);
+				if (historyData == null)
+					break;
+
+				if (historyData.HasTeleported == true)
+				{
+					data.HasTeleported = true;
+					break;
+				}
+
+				--historyTeleportTick;
+			}
+			_networkContext.LastInterpolationTeleportCounter = currentFixedData.Tick;
+
+			data.JumpFrames = 0;
+			int historyJumpTick = currentFixedData.Tick;
+			while (historyJumpTick > _networkContext.LastInterpolationJumpCounter)
+			{
+				KCCData historyData = GetHistoryData(historyJumpTick);
+				if (historyData == null)
+					break;
+
+				if (historyData.HasJumped == true)
+				{
+					data.JumpFrames = 1;
+					break;
+				}
+
+				--historyJumpTick;
+			}
+			_networkContext.LastInterpolationJumpCounter = currentFixedData.Tick;
 
 			CacheProcessors(data);
 			InvokeOnInterpolate(data);
@@ -962,7 +991,7 @@ namespace Fusion.Addons.KCC
 
 				CapsuleOverlap(_extendedOverlapInfo, data, data.TargetPosition, _settings.Radius, _settings.Height, baseOverlapQueryExtent, _settings.CollisionLayerMask, QueryTriggerInteraction.Collide);
 
-				data.TargetPosition = ResolvePenetration(_extendedOverlapInfo, data, data.BasePosition, data.TargetPosition, hasJumped == false, data.MaxPenetrationSteps, 3, true);
+				ResolvePenetration(_extendedOverlapInfo, data, data.MaxPenetrationSteps, hasJumped == false, true);
 
 				UpdateHits(data, _extendedOverlapInfo, baseHitsOverlapQuery);
 			}
@@ -977,18 +1006,31 @@ namespace Fusion.Addons.KCC
 			ExecuteStageInternal<IAfterMoveStep, AfterMoveStep>(_afterMoveStep, data);
 		}
 
+		[Obsolete("Use SynchronizeTransform(KCCData data, bool synchronizePosition, bool synchronizeRotation, bool allowAntiJitter, bool moveRigidBody)")]
 		private void SynchronizeTransform(KCCData data, bool synchronizePosition, bool synchronizeRotation, bool allowAntiJitter)
+		{
+			SynchronizeTransform(data, synchronizePosition, synchronizeRotation, allowAntiJitter, false);
+		}
+
+		private void SynchronizeTransform(KCCData data, bool synchronizePosition, bool synchronizeRotation, bool allowAntiJitter, bool moveRigidBody)
 		{
 			if (synchronizePosition == true)
 			{
 				Vector3 targetPosition = data.TargetPosition;
 
-				_rigidbody.position = targetPosition;
+				if (moveRigidBody == true)
+				{
+					_rigidbody.MovePosition(targetPosition);
+				}
+				else
+				{
+					_rigidbody.position = targetPosition;
+				}
 
 				if (allowAntiJitter == true && _activeFeatures.Has(EKCCFeature.AntiJitter) == true && _settings.AntiJitterDistance.IsZero() == false)
 				{
 					Vector3 targetDelta = targetPosition - _lastAntiJitterPosition;
-					if (targetDelta.sqrMagnitude < _settings.TeleportThreshold * _settings.TeleportThreshold)
+					if (targetDelta.sqrMagnitude < 1.0f)
 					{
 						targetPosition = _lastAntiJitterPosition;
 
@@ -1028,9 +1070,9 @@ namespace Fusion.Addons.KCC
 			}
 		}
 
-		private void RefreshCollider()
+		private void RefreshCollider(bool isActive)
 		{
-			if (_settings.Shape == EKCCShape.None)
+			if (isActive == false || _settings.Shape == EKCCShape.None)
 			{
 				_collider.Destroy();
 				return;
@@ -1074,6 +1116,7 @@ namespace Fusion.Addons.KCC
 			_lastPredictedRenderFrame       = default;
 			_lastPredictedLookRotationFrame = default;
 			_lastRenderTime                 = default;
+			_lastRenderFrame                = default;
 			_lastRenderPosition             = default;
 			_lastAntiJitterPosition         = default;
 			_lastNonNetworkedCollider       = default;

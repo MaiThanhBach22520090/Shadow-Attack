@@ -794,6 +794,9 @@ GameObject:
   - component: {fileID: 5555162426367305650}
   - component: {fileID: 7227464116718632667}
   - component: {fileID: 4391075928499431294}
+  - component: {fileID: 2587425673079466739}
+  - component: {fileID: 1138856865995604532}
+  - component: {fileID: 3234449185223532133}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -836,6 +839,8 @@ MonoBehaviour:
   NetworkedBehaviours:
   - {fileID: 7227464116718632667}
   - {fileID: 4391075928499431294}
+  - {fileID: 1138856865995604532}
+  ForceRemoteRenderTimeframe: 0
 --- !u!54 &5555162426367305650
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -883,11 +888,15 @@ MonoBehaviour:
   - {fileID: 3208298448284846645}
   - {fileID: 5271234934346940701}
   - {fileID: 8799478614307836382}
+  lagCompensationLayer:
+    serializedVersion: 2
+    m_Bits: 1
   kcc: {fileID: 4391075928499431294}
   glideProcessor: {fileID: 3540907148272033431, guid: 6dde4e95e9ae2d547971fdb72f979b45,
     type: 3}
   camTarget: {fileID: 7521976898276525714}
   source: {fileID: 1299036719452211626}
+  shoveSound: {fileID: 0}
   maxPitch: 85
   lookSensitivity: 0.15
   jumpImpulse: {x: 0, y: 10, z: 0}
@@ -895,13 +904,20 @@ MonoBehaviour:
   grappleCD: 2
   glideCD: 20
   doubleJumpCD: 5
+  breakBlockCD: 1.25
+  cageCD: 10
+  shoveCD: 2
+  shoveStrength: 20
   grappleStrength: 12
   maxGlideTime: 2
   <AbilityRange>k__BackingField: 25
+  cagePrefab: {fileID: 2511659916882949511, guid: b7f032a4b8c9da14e8c7969e119ac84d,
+    type: 3}
   IsReady: 0
   _Name: 
   _GlideCharge: 0
   _IsGliding: 0
+  _IsCaged: 0
 --- !u!114 &4391075928499431294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -914,6 +930,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f7684f04e649e84fb2ee1bc9fbee42d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _stateAuthorityChangeErrorCorrectionDelta: 0
   _settings:
     Shape: 1
     IsTrigger: 0
@@ -928,12 +945,12 @@ MonoBehaviour:
     InputAuthorityBehavior: 0
     StateAuthorityBehavior: 0
     ProxyInterpolationMode: 0
+    ForcePredictedLookRotation: 1
     AllowClientTeleports: 0
     Processors:
     - {fileID: 3540907148272033431, guid: 55216e8f524946542a8db4fa927c36ed, type: 3}
     - {fileID: 561824206424634091, guid: 68c4081a63f1dfd469da9c95bea22158, type: 3}
     - {fileID: 8306782452827789390, guid: 6d976f9777012db4aa55e7e6b1991afe, type: 3}
-    TeleportThreshold: 1
     MaxPenetrationSteps: 8
     CCDRadiusMultiplier: 0.75
     AntiJitterDistance: {x: 0.025, y: 0.01}
@@ -941,8 +958,59 @@ MonoBehaviour:
     NetworkedInteractions: 8
     CompressNetworkPosition: 0
     ForceSingleOverlapQuery: 0
-    ForcePredictedLookRotation: 0
     SuppressConvexMeshColliders: 0
+--- !u!114 &2587425673079466739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9040168462585498880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1014831617, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Type: 3
+  SphereRadius: 0
+  CapsuleRadius: 0.35
+  BoxExtents: {x: 0, y: 0, z: 0}
+  CapsuleExtents: 1.8
+  Offset: {x: 0, y: 0.9, z: 0}
+  Root: {fileID: 1138856865995604532}
+  GizmosColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+--- !u!114 &1138856865995604532
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9040168462585498880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1039544458, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Config: 3
+  BroadRadius: 0.9
+  Offset: {x: 0, y: 0.9, z: 0}
+  GizmosColor: {r: 0.6754716, g: 0.059900276, b: 0.58930224, a: 1}
+  Hitboxes:
+  - {fileID: 2587425673079466739}
+--- !u!114 &3234449185223532133
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9040168462585498880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d02410b72cb1b3d489d8f9d6e8cd09c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  highlight: {fileID: 2100000, guid: 9b8474a1396a6be47bef7ace3ac2502b, type: 2}
+  meshRenderer: {fileID: 3410509747022642841}
 --- !u!1001 &4218172695574425155
 PrefabInstance:
   m_ObjectHideFlags: 0

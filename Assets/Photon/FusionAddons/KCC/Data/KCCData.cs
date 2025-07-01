@@ -486,6 +486,36 @@ namespace Fusion.Addons.KCC
 		}
 
 		/// <summary>
+		/// Set pitch and yaw look rotation. Values are clamped to &lt;minPitch, maxPitch&gt; (pitch) and &lt;-180, 180&gt; (yaw).
+		/// Changes are not propagated to Transform component.
+		/// </summary>
+		public void SetLookRotation(float pitch, float yaw, float minPitch, float maxPitch)
+		{
+			KCCUtility.ClampLookRotationAngles(ref pitch, ref yaw, minPitch, maxPitch);
+
+			LookPitch = pitch;
+			LookYaw   = yaw;
+		}
+
+		/// <summary>
+		/// Set pitch (x) and yaw (y) look rotation. Values are clamped to &lt;-90, 90&gt; (pitch) and &lt;-180, 180&gt; (yaw).
+		/// Changes are not propagated to Transform component.
+		/// </summary>
+		public void SetLookRotation(Vector2 lookRotation)
+		{
+			SetLookRotation(lookRotation.x, lookRotation.y);
+		}
+
+		/// <summary>
+		/// Set pitch (x) and yaw (y) look rotation. Values are clamped to &lt;minPitch, maxPitch&gt; (pitch) and &lt;-180, 180&gt; (yaw).
+		/// Changes are not propagated to Transform component.
+		/// </summary>
+		public void SetLookRotation(Vector2 lookRotation, float minPitch, float maxPitch)
+		{
+			SetLookRotation(lookRotation.x, lookRotation.y, minPitch, maxPitch);
+		}
+
+		/// <summary>
 		/// Set pitch and yaw look rotation. Roll is ignored (not supported). Values are clamped to &lt;-90, 90&gt; (pitch) and &lt;-180, 180&gt; (yaw).
 		/// Changes are not propagated to Transform component.
 		/// </summary>

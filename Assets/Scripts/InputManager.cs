@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Composites;
 
 public class InputManager : SimulationBehaviour, IBeforeUpdate, INetworkRunnerCallbacks
 {
@@ -16,6 +17,9 @@ public class InputManager : SimulationBehaviour, IBeforeUpdate, INetworkRunnerCa
     private NetInput accumulatedInput;
     private Vector2Accumulator mouseDeltaAccumulator = new() { SmoothingWindow = 0.025f };
     private bool resetInput;
+
+    private AbilityMode selectedAbility;
+
 
     void IBeforeUpdate.BeforeUpdate()
     {
@@ -52,6 +56,7 @@ public class InputManager : SimulationBehaviour, IBeforeUpdate, INetworkRunnerCa
             Vector2 mouseDelta = mouse.delta.ReadValue();
             Vector2 lookRotationDelta = new(-mouseDelta.y, mouseDelta.x);
             mouseDeltaAccumulator.Accumulate(lookRotationDelta);
+            buttons.Set(InputButton.UseAbility, mouse.leftButton.isPressed);
             buttons.Set(InputButton.Grapple, mouse.rightButton.isPressed);
         }
 
@@ -74,9 +79,26 @@ public class InputManager : SimulationBehaviour, IBeforeUpdate, INetworkRunnerCa
             accumulatedInput.Direction += moveDirection;
             buttons.Set(InputButton.Jump, keyboard.spaceKey.isPressed);
             buttons.Set(InputButton.Glide, keyboard.leftShiftKey.isPressed);
+
+            if (keyboard.digit1Key.isPressed)
+            {
+                selectedAbility = AbilityMode.BreakBlock;
+                UIManager.Singleton.SelectAbility(selectedAbility);
+            }
+            else if (keyboard.digit2Key.isPressed)
+            {
+                selectedAbility = AbilityMode.Cage;
+                UIManager.Singleton.SelectAbility(selectedAbility);
+            }
+            else if (keyboard.digit3Key.isPressed)
+            {
+                selectedAbility = AbilityMode.Shove;
+                UIManager.Singleton.SelectAbility(selectedAbility);
+            }
         }
 
         accumulatedInput.Buttons = new NetworkButtons(accumulatedInput.Buttons.Bits | buttons.Bits);
+        accumulatedInput.AbilityMode = selectedAbility;
     }
 
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
