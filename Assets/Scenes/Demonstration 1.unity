@@ -490,6 +490,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: star_002_1
       objectReference: {fileID: 0}
+    - target: {fileID: 8567667338576954172, guid: 00d9c4199fb80b841ae1f409c4c8d99c,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -17350,7 +17355,7 @@ Transform:
   m_GameObject: {fileID: 769351563}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 11.19, z: 7.35}
+  m_LocalPosition: {x: 0, y: 11.19, z: 0.19}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -23321,7 +23326,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1161988381
 Transform:
   m_ObjectHideFlags: 0
@@ -30497,6 +30502,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: coin_001_1
       objectReference: {fileID: 0}
+    - target: {fileID: 7682170409732517496, guid: b1a56d3c6f8bb9d48b6c038112676497,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -35781,6 +35791,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: obstacle_9_001
+      objectReference: {fileID: 0}
+    - target: {fileID: 9211045225200507731, guid: 1cbcf45e525ad1c4d83824a260622cca,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -50,7 +50,10 @@ public class Player : NetworkBehaviour
     public float CageCDFactor => (CageCD.RemainingTime(Runner) ?? 0f) / cageCD;
     public float ShoveCDFactor => (ShoveCD.RemainingTime(Runner) ?? 0f) / shoveCD;
 
-    public double Score => Math.Round(transform.position.y, 1);
+    public Vector3 basePosition;
+
+    // Calculated Distance from the base position to the current position then rounded to 2 decimal places for display purposes.
+    public double Score => Math.Round(Vector3.Distance(basePosition, transform.position), 2);
     public bool IsReady; // Server is the only one who cares about this
     private bool CanGlide => !kcc.Data.IsGrounded && GlideCharge > 0f || !IsCaged;
     public AbilityMode SelectedAbility { get; private set; }
@@ -80,6 +83,8 @@ public class Player : NetworkBehaviour
     {
         glideDrain = 1f / (maxGlideTime * Runner.TickRate);
         GlideCharge = 1f;
+
+        basePosition = transform.position;
 
         if (HasInputAuthority)
         {
