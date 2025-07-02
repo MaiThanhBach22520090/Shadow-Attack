@@ -1,15 +1,17 @@
 using UnityEngine;
 
+public enum RotationAxis
+{
+    X,
+    Y,
+    Z
+}
+
 namespace ithappy
 {
     public class RotationScript : MonoBehaviour
     {
-        public enum RotationAxis
-        {
-            X,
-            Y,
-            Z
-        }
+        
 
         public RotationAxis rotationAxis = RotationAxis.Y;
         public float rotationSpeed = 50.0f;

@@ -66,17 +66,17 @@ PrefabInstance:
     - target: {fileID: 4219866145273439913, guid: 1ab62523487a65745ab7ee9663ad9025,
         type: 3}
       propertyPath: Gravity.y
-      value: -19.62
+      value: -20
       objectReference: {fileID: 0}
     - target: {fileID: 4219866145273439913, guid: 1ab62523487a65745ab7ee9663ad9025,
         type: 3}
       propertyPath: JumpMultiplier
-      value: 1
+      value: 0.75
       objectReference: {fileID: 0}
     - target: {fileID: 4219866145273439913, guid: 1ab62523487a65745ab7ee9663ad9025,
         type: 3}
       propertyPath: KinematicSpeed
-      value: 6
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 9210010051615565378, guid: 1ab62523487a65745ab7ee9663ad9025,
         type: 3}

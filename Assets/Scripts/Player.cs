@@ -40,6 +40,9 @@ public class Player : NetworkBehaviour
 
     [SerializeField] private Cage cagePrefab;
 
+    [SerializeField] private Checkpoint _initialCheckpoint;
+    [SerializeField] private Example.Teleport.Teleport _teleportProcessor;
+
     public float GrappleCDFactor => (GrappleCD.RemainingTime(Runner) ?? 0f) / grappleCD;
     public float GlideCDFactor => (GlideCD.RemainingTime(Runner) ?? 0f) / glideCD;
     public float DoubleJumpCDFactor => (DoubleJumpCD.RemainingTime(Runner) ?? 0f) / doubleJumpCD;
@@ -67,6 +70,8 @@ public class Player : NetworkBehaviour
     [Networked, OnChangedRender(nameof(Jumped))] private int JumpSync { get; set; }
     [Networked, OnChangedRender(nameof(Shoved))] private int ShoveSync { get; set; }
 
+    [Networked] public NetworkId _activeCheckpointId { get; private set; }
+
     private InputManager inputManager;
     private Vector2 baseLookRotation;
     private float glideDrain;
@@ -87,6 +92,23 @@ public class Player : NetworkBehaviour
             RPC_PlayerName(Name);
             CameraFollow.Singleton.SetTarget(camTarget, this);
             UIManager.Singleton.LocalPlayer = this;
+            _teleportProcessor = Runner.GetComponent<Example.Teleport.Teleport>();
+        }
+
+        if (Object.HasStateAuthority)
+        {
+            // When the player object spawns, set its initial active checkpoint.
+            if (_initialCheckpoint != null)
+            {
+                _activeCheckpointId = _initialCheckpoint.Object.Id; // Set the networked ID
+                // Immediately teleport the player to the initial checkpoint's location
+                // The Teleport method now just adds the processor, which finds the target.
+                Debug.Log($"Player {Object.InputAuthority.PlayerId} spawned and set initial checkpoint: {_initialCheckpoint.CheckpointID}");
+            }
+            else
+            {
+                Debug.LogWarning($"Player {Object.InputAuthority.PlayerId} spawned without an initial checkpoint assigned! Assign one in the Inspector.");
+            }
         }
     }
 
@@ -133,6 +155,75 @@ public class Player : NetworkBehaviour
         }
 
         UpdateCamTarget();
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!Object.HasStateAuthority)
+            return; // Only server/host processes checkpoint activations
+
+        // Try to get the Checkpoint component from the triggered collider's root NetworkObject.
+        Checkpoint checkpoint = other.GetComponent<Checkpoint>();
+        if (checkpoint != null)
+        {
+            // Optional: Logic to ensure checkpoints are activated in order or only higher IDs
+            // If you want any checkpoint hit to be the new active one, remove the 'if' condition below.
+            Runner.TryFindObject(_activeCheckpointId, out NetworkObject activeCheckpointNO);
+            Checkpoint currentActiveCheckpoint = activeCheckpointNO?.GetComponent<Checkpoint>();
+
+            // If no checkpoint is active, or the new checkpoint has a higher ID than the current one, activate it.
+            // This prevents players from going backwards and activating an earlier checkpoint.
+            if (currentActiveCheckpoint == null || checkpoint.CheckpointID > currentActiveCheckpoint.CheckpointID)
+            {
+                _activeCheckpointId = checkpoint.Object.Id; // Update the networked active checkpoint ID
+                checkpoint.Activate(); // Call the Activate method on the checkpoint (visual/audio feedback)
+                Debug.Log($"Player {Object.InputAuthority.PlayerId} activated Checkpoint {checkpoint.CheckpointID}");
+            }
+        }
+    }
+
+
+    public void TeleportToActiveCheckpoint()
+    {
+        // Attempt to find the NetworkObject associated with the stored _activeCheckpointId.
+        if (Runner.TryFindObject(_activeCheckpointId, out NetworkObject checkpointNO))
+        {
+            Checkpoint activeCheckpoint = checkpointNO.GetComponent<Checkpoint>();
+            if (activeCheckpoint != null)
+            {
+                // Use the Teleport method (which now uses the KCC processor) to move the player.
+                Teleport(activeCheckpoint.GetTeleportPosition(), activeCheckpoint.GetTeleportRotation());
+                Debug.Log($"Player {Object.InputAuthority.PlayerId} teleported to checkpoint {activeCheckpoint.CheckpointID}");
+            }
+            else
+            {
+                Debug.LogError($"Failed to get Checkpoint component from active checkpoint NetworkObject with ID: {_activeCheckpointId}.");
+                // Fallback: If the object exists but isn't a Checkpoint (shouldn't happen with correct setup)
+                TeleportToInitialCheckpointAsFallback();
+            }
+        }
+        else
+        {
+            Debug.LogError($"Active checkpoint NetworkObject not found with ID: {_activeCheckpointId}. Was it despawned?");
+            // Fallback: If the active checkpoint object itself is not found (e.g., despawned, not loaded additively)
+            TeleportToInitialCheckpointAsFallback();
+        }
+    }
+
+    private void TeleportToInitialCheckpointAsFallback()
+    {
+        if (_initialCheckpoint != null)
+        {
+            Teleport(_initialCheckpoint.GetTeleportPosition(), _initialCheckpoint.GetTeleportRotation());
+            _activeCheckpointId = _initialCheckpoint.Object.Id; // Reset to initial checkpoint
+            Debug.LogWarning("Teleported to initial checkpoint as fallback.");
+        }
+        else
+        {
+            // Absolute last resort: teleport to origin (0,0,0) or a default safe spawn point
+            Teleport(Vector3.zero, Quaternion.identity);
+            Debug.LogError("No valid initial or active checkpoint found. Teleporting to origin.");
+        }
     }
 
     private void CheckGlide(NetInput input)

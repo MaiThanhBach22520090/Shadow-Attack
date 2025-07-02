@@ -203,5 +203,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7fa3d761a445534f972e8453229adb5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ImpulseStrength: 0
-  isSphere: 0
+  ImpulseStrength: 15
+  isSphere: 1

@@ -26,7 +26,10 @@ MonoBehaviour:
     ScenePath: Assets/Scenes/Game.unity
     Preview: {fileID: 21300000, guid: c78f8bafb5c24b14cadb5e0b6a8aaca4, type: 3}
   - Name: Game 1
-    ScenePath: Assets/Scenes/Game 1.unity
+    ScenePath: Assets/Scenes/Demonstration 1.unity
+    Preview: {fileID: 21300000, guid: d3f33adb909e26443914391fba875e4c, type: 3}
+  - Name: Game 2
+    ScenePath: Assets/Scenes/Demonstration 2.unity
     Preview: {fileID: 21300000, guid: 6fc58d13cd4547a43a2cb76ed4d94e95, type: 3}
   _machineId: {fileID: -755480892457977500, guid: 14d0ba76e6402554fb21eb7d976871ff,
     type: 3}
